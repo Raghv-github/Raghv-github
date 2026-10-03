@@ -1,168 +1,157 @@
-🌫️ Air Quality Index (AQI) Prediction for Indian Cities
-🧭 Project Overview
+# Breast Cancer Survival Analysis (GBSG)
 
-This project predicts the Air Quality Index (AQI) for major Indian cities using machine learning and deep learning techniques.
-The goal is to identify the key air pollutants that affect air quality and build a predictive model capable of estimating AQI based on pollutant concentrations.
+Recurrence-free survival analysis of 686 breast cancer patients from the German Breast Cancer Study Group (GBSG) trial, combining classical statistics and machine learning:
 
-Air pollution is a major environmental issue in India, causing serious health risks. This project uses data-driven modeling to forecast AQI and help policymakers, environmental authorities, and citizens understand pollution trends more effectively.
+- **Kaplan–Meier** estimates and **log-rank** tests
+- **Cox Proportional Hazards** regression
+- **Survival Gradient Boosting** (`scikit-survival`)
 
-📊 Dataset Description
+## Dataset
 
-The dataset contains air pollutant concentration levels collected from different monitoring stations across multiple Indian cities.
+[Breast Cancer Dataset (Royston & Altman)](https://www.kaggle.com/datasets/utkarshx27/breast-cancer-dataset-used-royston-and-altman) – `gbsg.csv`, 686 patients, no missing values, 299 events and 387 censored observations.
 
-Key features include:
+| Column | Description |
+| ------ | ----------- |
+| `pid` | Patient identifier |
+| `age` | Age (years) |
+| `meno` | Menopausal status (0 = pre, 1 = post) |
+| `size` | Tumour size (mm) |
+| `grade` | Tumour grade |
+| `nodes` | Number of positive lymph nodes |
+| `pgr` | Progesterone receptors (fmol/L) |
+| `er` | Estrogen receptors (fmol/L) |
+| `hormon` | Hormonal therapy (0 = no, 1 = yes) |
+| `rfstime` | Recurrence-free survival time (days) |
+| `status` | Event (0 = censored, 1 = recurrence or death) |
 
-🧪 PM2.5, PM10 — Particulate matter concentrations
+See [`data/README.md`](data/README.md) for how to get the file.
 
-🧪 NO₂, SO₂, CO, O₃, NH₃ — Gaseous pollutants
+## Project structure
 
-🏙️ City — Name of the city
+```
+.
+├── notebooks/
+│   └── breast_cancer_survival_analysis.ipynb
+├── images/                 # figures exported from the notebook
+├── data/
+│   └── README.md           # data download instructions
+├── requirements.txt
+├── .gitignore
+├── LICENSE
+└── README.md
+```
 
-🎯 AQI — Target variable (Air Quality Index)
+## Getting started
 
-Data Source:
-Central Pollution Control Board (CPCB) and publicly available AQI datasets from Kaggle.
+```bash
+git clone https://github.com/<your-username>/<your-repo>.git
+cd <your-repo>
 
-⚙️ Machine Learning Models Implemented
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
-We applied and compared several regression algorithms to predict AQI values:
+jupyter notebook notebooks/breast_cancer_survival_analysis.ipynb
+```
 
-Model	Type	Description
-Linear Regression	Baseline	Simple linear model for comparison
-Random Forest Regressor	Ensemble (Bagging)	Combines multiple trees for better stability
-Gradient Boosting Regressor	Ensemble (Boosting)	Builds trees sequentially to reduce residuals
-AdaBoost Regressor	Ensemble (Boosting)	Focuses on harder-to-predict samples
-XGBoost Regressor	Advanced Boosting	Highly optimized gradient boosting
-LightGBM Regressor	Gradient Boosting	Faster and more efficient than traditional GBMs
-CatBoost Regressor	Gradient Boosting	Handles categorical data efficiently
-Naive Bayes Regression	Probabilistic	Used for comparison baseline
-🤖 Deep Learning Model
+> `scikit-survival` can be tricky to install with pip on some systems. If it fails, use conda: `conda install -c sebp scikit-survival`.
 
-A Feedforward Neural Network (FNN) was also built using TensorFlow/Keras to capture complex, non-linear relationships between pollutants and AQI.
+## Methods and results
 
-Model Architecture:
+### Kaplan–Meier
 
-Input layer (features: pollutant levels, city)
+Median recurrence-free time for the whole cohort is **1,807 days**.
 
-Dense (128 neurons, ReLU activation)
+![Overall KM](images/km_overall.png)
 
-Dropout (0.2)
+**Hormonal therapy** – the log-rank test shows a significant difference between treated and untreated patients (χ² = 8.56, 1 df, p < 0.005).
 
-Dense (64 neurons, ReLU activation)
+![KM by hormonal therapy](images/km_by_hormonal_therapy.png)
 
-Output layer (1 neuron, Linear activation)
+| Menopausal status | Tumour grade |
+| :---: | :---: |
+| ![KM by menopause](images/km_by_menopausal_status.png) | ![KM by grade](images/km_by_tumour_grade.png) |
 
-Optimizer: Adam
+Age and lymph-node curves use cumulative thresholds (e.g. `nodes > 5` includes `nodes > 10`), so the groups overlap by design.
 
-Loss: Mean Squared Error (MSE)
+| Age thresholds | Positive lymph nodes |
+| :---: | :---: |
+| ![KM by age](images/km_by_age.png) | ![KM by nodes](images/km_by_nodes.png) |
 
-Epochs: 50, Batch Size: 32
+### Cox Proportional Hazards
 
-📈 Model Evaluation
+All covariates except `pid` were included (686 patients, 299 events). Concordance 0.69 (in-sample), likelihood-ratio test 101.86 on 8 df.
 
-Models were compared based on R² Score, RMSE, and MAE.
+| Covariate | Hazard ratio | 95% CI | p |
+| --------- | :---: | :---: | :---: |
+| `nodes` | 1.05 | 1.04 – 1.07 | < 0.005 |
+| `pgr` | 1.00 | 1.00 – 1.00 | < 0.005 |
+| `grade` | 1.32 | 1.08 – 1.63 | 0.01 |
+| `hormon` | 0.71 | 0.55 – 0.92 | 0.01 |
+| `size` | 1.01 | 1.00 – 1.02 | 0.05 |
+| `meno` | 1.31 | 0.91 – 1.87 | 0.14 |
+| `age` | 0.99 | 0.97 – 1.01 | 0.31 |
+| `er` | 1.00 | 1.00 – 1.00 | 0.71 |
 
-Model	R²	RMSE	MAE
-XGBoost	0.93	10.5	8.7
-LightGBM	0.92	10.8	8.9
-CatBoost	0.91	11.2	9.0
-Random Forest	0.88	12.2	9.6
-Deep Learning (MLP)	0.90	11.3	9.2
-Linear Regression	0.78	15.4	12.0
+![Cox coefficients](images/cox_coefficients.png)
 
-✅ XGBoost delivered the highest predictive performance and was chosen as the final model.
-✅ The Deep Learning model performed competitively, capturing complex feature interactions.
+Hazard ratio > 1 means higher risk. More positive nodes and higher grade increase risk, while hormonal therapy is associated with about a 29% lower hazard.
 
-🔍 Feature Importance (XGBoost)
+> `pgr` and `er` show a hazard ratio of 1.00 because they are measured on a very large scale (0 – 2,380 fmol/L); a log-transform would make their effects easier to read.
 
-Feature importance analysis revealed:
+### Survival Gradient Boosting
 
-PM2.5 and PM10 are the most influential pollutants in determining AQI.
+`GradientBoostingSurvivalAnalysis(n_estimators=200, learning_rate=0.05, max_depth=3, random_state=42)` on an 80/20 train/test split gave a **test C-index of 0.655**.
 
-Gaseous pollutants such as CO, NO₂, and O₃ also contribute significantly.
+| Feature | Importance |
+| ------- | :---: |
+| `nodes` | 0.294 |
+| `pgr` | 0.212 |
+| `age` | 0.189 |
+| `size` | 0.140 |
+| `er` | 0.110 |
+| `hormon` | 0.028 |
+| `grade` | 0.027 |
+| `meno` | 0.000 |
 
-<p align="center"> <img src="your_image_link_here.png" alt="XGBoost Feature Importance" width="600"> </p>
-🧠 Technologies Used
+![Feature importance](images/gb_feature_importance.png)
 
-🐍 Python
+Lymph-node count ranks first in both models. Predicted survival curves for individual test patients:
 
-📘 Pandas, NumPy, Scikit-learn
+![Predicted survival curves](images/gb_predicted_survival.png)
 
-⚙️ XGBoost, LightGBM, CatBoost
+### Model comparison
 
-🧠 TensorFlow / Keras (for Deep Learning)
+Both models were scored on the same held-out 20% (138 patients):
 
-📊 Matplotlib, Seaborn (for visualization)
+| Model | Test C-index |
+| ----- | :---: |
+| Cox Proportional Hazards | **0.663** |
+| Survival Gradient Boosting | 0.655 |
 
-☁️ Google Colab
+The simpler Cox model is slightly ahead. With 686 patients and 299 events, the extra flexibility of boosting did not help, and the 0.008 gap is well within what a single split can produce by chance.
 
-💾 Joblib / Pickle (for saving models)
+## Limitations
 
-💾 Project Files
-AQI_Prediction_India/
-│
-├── AQI_Prediction_India.ipynb       # Main Colab Notebook
-├── cleaned_dataset.csv               # Preprocessed Dataset
-├── best_xgboost_model.pkl            # Saved XGBoost Model
-├── requirements.txt                  # Dependencies
-└── README.md                         # Project Documentation
+- Single 80/20 split on 686 patients, so the C-index estimates (0.663 vs 0.655) are noisy and the models cannot be ranked reliably; cross-validation and hyperparameter tuning would help.
+- The proportional-hazards assumption of the Cox model was not formally tested (`cph.check_assumptions`).
+- Age and node thresholds are overlapping groups, not independent strata.
+- Results are observational/educational and not medical advice.
 
-🚀 How to Run the Project
+## Possible next steps
 
-Clone the repository
+1. **Cross-validation** – replace the single split with 5-fold (or repeated) CV and report mean ± std C-index for both models.
+2. **Check the Cox assumptions** – run `cph.check_assumptions(df_model)` and stratify or add interactions if the proportional-hazards assumption fails.
+3. **Feature engineering** – log-transform `pgr`, `er` and `nodes`; treat `grade` as categorical.
+4. **Hyperparameter tuning** – `GridSearchCV` over `n_estimators`, `learning_rate`, `max_depth`, `subsample`.
+5. **More models** – Random Survival Forest, regularised Cox (`CoxnetSurvivalAnalysis`), and compare with time-dependent AUC and the integrated Brier score.
+6. **Permutation importance** – the built-in boosting importances can be biased; permutation importance on the test set is more reliable.
+7. **Calibration** – check that predicted survival probabilities match observed ones (e.g. at 2 and 5 years).
 
-git clone https://github.com/YourUsername/AQI_Prediction_India.git
+## Tech stack
 
+Python · pandas · NumPy · matplotlib · seaborn · lifelines · scikit-survival · scikit-learn
 
-Open the notebook in Google Colab or Jupyter Notebook
+## License
 
-AQI_Prediction_India.ipynb
-
-
-Run all cells sequentially to:
-
-Train and evaluate models
-
-View AQI prediction results
-
-Generate feature importance plots
-
-📊 Results Summary
-
-✅ Best Model: XGBoost
-✅ Top Features: PM2.5, PM10, CO, NO₂
-✅ Accuracy: R² = 0.93
-✅ Deep Learning model closely matched ensemble performance, proving neural networks’ potential in environmental prediction tasks.
-
-🧭 Conclusion
-
-This project demonstrates that machine learning and deep learning methods can effectively predict Air Quality Index (AQI) across Indian cities.
-Particulate matter — particularly PM2.5 and PM10 — were identified as the primary pollutants influencing air quality.
-
-By leveraging data-driven models, this approach can support:
-
-Real-time AQI forecasting
-
-Air pollution management
-
-Policy planning and public health awareness
-
-💡 Future Enhancements
-
-Include meteorological features (temperature, humidity, wind speed)
-
-Use LSTM networks for time-series forecasting
-
-Build a real-time AQI prediction web app using Streamlit or Flask
-
-Deploy the model via AWS / Google Cloud
-
-👨‍💻 Author
-
-Raghvendra Choubey
-📧 raghvendra.choubey.stats@gmail.com
-
-
-
-This project is released under the MIT License — feel free to use and modify it with proper attribution.
-
+MIT – see [LICENSE](LICENSE).
